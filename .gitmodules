@@ -1,10 +1,10 @@
 [submodule "gcc"]
 	path = gcc
-	url = https://github.com/andestech/gcc.git
+	url = ../gcc.git
 	branch = ast-v5_4_1-release-v5
 [submodule "binutils"]
 	path = binutils
-	url = https://github.com/andestech/binutils.git
+	url = ../binutils.git
 	branch = ast-v5_4_1-release-v5
 [submodule "newlib"]
 	path = newlib
