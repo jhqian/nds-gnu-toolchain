@@ -352,12 +352,33 @@ mkdir -p gdb
 cd gdb
 
 print_substep "Configuring GDB..."
-${BINUTILS_SRC}/configure \
-  --target=${TARGET} --prefix=${PREFIX} --with-arch=${ARCH} \
+# Detect Homebrew prefix for GMP and MPFR
+HOMEBREW_PREFIX=""
+if command -v brew > /dev/null 2>&1; then
+    HOMEBREW_PREFIX=$(brew --prefix)
+elif [ -d "/opt/homebrew" ]; then
+    HOMEBREW_PREFIX="/opt/homebrew"
+elif [ -d "/usr/local" ]; then
+    HOMEBREW_PREFIX="/usr/local"
+fi
+
+GDB_CONFIGURE_ARGS="--target=${TARGET} --prefix=${PREFIX} --with-arch=${ARCH} \
   --with-curses --disable-nls --enable-tui --with-python=no \
   --with-lzma=no --with-expat=yes --with-guile=no \
   --disable-werror --disable-sim \
-  --disable-binutils --disable-ld --disable-gas --disable-gprof
+  --disable-binutils --disable-ld --disable-gas --disable-gprof"
+
+# Add GMP and MPFR paths if Homebrew is available
+if [ -n "$HOMEBREW_PREFIX" ] && [ -d "$HOMEBREW_PREFIX/include" ]; then
+    if [ -f "$HOMEBREW_PREFIX/include/gmp.h" ]; then
+        GDB_CONFIGURE_ARGS="$GDB_CONFIGURE_ARGS --with-gmp=$HOMEBREW_PREFIX"
+    fi
+    if [ -f "$HOMEBREW_PREFIX/include/mpfr.h" ]; then
+        GDB_CONFIGURE_ARGS="$GDB_CONFIGURE_ARGS --with-mpfr=$HOMEBREW_PREFIX"
+    fi
+fi
+
+${BINUTILS_SRC}/configure $GDB_CONFIGURE_ARGS
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 echo "✓ GDB configuration completed"
 
