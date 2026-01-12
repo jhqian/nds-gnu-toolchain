@@ -1,0 +1,233 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# GitHub Release workflow for building NDS32 ELF toolchain on Linux and macOS
+
+name: Release Build
+
+on:
+  push:
+#    tags:
+#      - 'v*'
+    branches:
+      - 'test'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-macos-x86_64:
+    name: Build macOS (x86_64)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Initialize Submodules
+        run: |
+          git submodule update --init --recursive
+
+      - name: Install Build Dependencies
+        run: |
+          echo "Installing build dependencies via Homebrew..."
+          
+          # Ensure Homebrew is available
+          if ! command -v brew > /dev/null 2>&1; then
+            echo "Installing Homebrew..."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            # Add Homebrew to PATH for Apple Silicon Macs
+            if [ -f /opt/homebrew/bin/brew ]; then
+              eval "$(/opt/homebrew/bin/brew shellenv)"
+            elif [ -f /usr/local/bin/brew ]; then
+              eval "$(/usr/local/bin/brew shellenv)"
+            fi
+          fi
+          
+          # Update Homebrew
+          echo "Updating Homebrew..."
+          brew update || true
+          
+          # Install required dependencies
+          echo "Installing dependencies: make gcc python3 texinfo gmp mpfr libmpc"
+          brew install make gcc python3 texinfo gmp mpfr libmpc || {
+            echo "Failed to install dependencies"
+            exit 1
+          }
+          
+          echo "✓ All dependencies installed successfully"
+
+      - name: Build Toolchain
+        run: |
+          chmod +x build_elf_toolchain_macos.sh
+          ./build_elf_toolchain_macos.sh
+
+      - name: Package Toolchain
+        run: |
+          mkdir -p artifacts/nds32le-elf-macos-x86_64
+          cd $HOME/toolchains
+          tar czf ${{ github.workspace }}/artifacts/nds32le-elf-macos-x86_64/nds32le-elf-macos-x86_64.tar.gz nds32le-elf-newlib-v5
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nds32le-elf-macos-x86_64
+          path: artifacts/nds32le-elf-macos-x86_64/nds32le-elf-macos-x86_64.tar.gz
+          retention-days: 7
+
+  build-macos-arm64:
+    name: Build macOS (arm64)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Initialize Submodules
+        run: |
+          git submodule update --init --recursive
+
+      - name: Install Build Dependencies
+        run: |
+          echo "Installing build dependencies via Homebrew..."
+          
+          # Ensure Homebrew is available
+          if ! command -v brew > /dev/null 2>&1; then
+            echo "Installing Homebrew..."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            # Add Homebrew to PATH for Apple Silicon Macs
+            if [ -f /opt/homebrew/bin/brew ]; then
+              eval "$(/opt/homebrew/bin/brew shellenv)"
+            elif [ -f /usr/local/bin/brew ]; then
+              eval "$(/usr/local/bin/brew shellenv)"
+            fi
+          fi
+          
+          # Update Homebrew
+          echo "Updating Homebrew..."
+          brew update || true
+          
+          # Install required dependencies
+          echo "Installing dependencies: make gcc python3 texinfo gmp mpfr libmpc"
+          brew install make gcc python3 texinfo gmp mpfr libmpc || {
+            echo "Failed to install dependencies"
+            exit 1
+          }
+          
+          echo "✓ All dependencies installed successfully"
+
+      - name: Build Toolchain
+        run: |
+          chmod +x build_elf_toolchain_macos.sh
+          ./build_elf_toolchain_macos.sh
+
+      - name: Package Toolchain
+        run: |
+          mkdir -p artifacts/nds32le-elf-macos-arm64
+          cd $HOME/toolchains
+          tar czf ${{ github.workspace }}/artifacts/nds32le-elf-macos-arm64/nds32le-elf-macos-arm64.tar.gz nds32le-elf-newlib-v5
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nds32le-elf-macos-arm64
+          path: artifacts/nds32le-elf-macos-arm64/nds32le-elf-macos-arm64.tar.gz
+          retention-days: 7
+
+  build-linux:
+    name: Build Linux (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Initialize Submodules
+        run: |
+          git submodule update --init --recursive
+
+      - name: Install Build Dependencies
+        run: |
+          echo "Installing build dependencies..."
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            make \
+            gcc \
+            g++ \
+            python3 \
+            texinfo \
+            flex \
+            bison \
+            libgmp-dev \
+            libmpfr-dev \
+            libmpc-dev \
+            libisl-dev \
+            libexpat1-dev \
+            libncurses-dev \
+            || {
+              echo "Failed to install dependencies"
+              exit 1
+            }
+          echo "✓ All dependencies installed successfully"
+
+      - name: Build Toolchain
+        run: |
+          chmod +x build_linux_toolchain.sh
+          ./build_linux_toolchain.sh
+
+      - name: Package Toolchain
+        run: |
+          mkdir -p artifacts/nds32le-elf-linux-x86_64
+          tar czf artifacts/nds32le-elf-linux-x86_64/nds32le-elf-linux-x86_64.tar.gz nds32le-linux-glibc-v5d
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nds32le-elf-linux-x86_64
+          path: artifacts/nds32le-elf-linux-x86_64/nds32le-elf-linux-x86_64.tar.gz
+          retention-days: 7
+
+  create-release:
+    name: Create Release
+    needs: [build-linux, build-macos-x86_64, build-macos-arm64]
+    runs-on: ubuntu-latest
+    # Only create release when pushing a tag, not a branch
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Get tag name
+        id: tag
+        run: |
+          if [[ "$GITHUB_REF" =~ ^refs/tags/(.+)$ ]]; then
+            TAG_NAME="${BASH_REMATCH[1]}"
+            echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+            echo "Tag name: $TAG_NAME"
+          else
+            echo "Error: GITHUB_REF is not a tag: $GITHUB_REF"
+            exit 1
+          fi
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/nds32le-elf-linux-x86_64/nds32le-elf-linux-x86_64.tar.gz
+            artifacts/nds32le-elf-macos-x86_64/nds32le-elf-macos-x86_64.tar.gz
+            artifacts/nds32le-elf-macos-arm64/nds32le-elf-macos-arm64.tar.gz
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
